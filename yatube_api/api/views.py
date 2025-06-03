@@ -10,24 +10,15 @@ from .serializers import PostSerializer, CommentSerializer, FollowSerializer
 
 User = get_user_model()
 
-
 class PostViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet для работы с постами.
-    Разрешает анонимным пользователям только чтение.
-    Добавлена пагинация, поиск и фильтрация по автору.
-    """
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        queryset = 
-        Post.objects.select_related('author').prefetch_related('comments')
-
+        queryset = Post.objects.select_related('author').prefetch_related('comments')
         author_username = self.request.query_params.get('author')
         if author_username:
             queryset = queryset.filter(author__username=author_username)
-            
         return queryset.order_by('-pub_date')
 
     def perform_create(self, serializer):
@@ -45,18 +36,12 @@ class PostViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def comments(self, request, pk=None):
-        """Получение всех комментариев к посту"""
         post = self.get_object()
         comments = post.comments.all()
         serializer = CommentSerializer(comments, many=True)
         return Response(serializer.data)
 
-
 class CommentViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet для работы с комментариями.
-    Комментарии привязаны к конкретному посту.
-    """
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
@@ -78,71 +63,45 @@ class CommentViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Вы не можете удалить чужой комментарий")
         instance.delete()
 
-
 class FollowViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet для работы с подписками.
-    Добавлена пагинация, поиск и проверка подписок.
-    """
     serializer_class = FollowSerializer
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = None  # Отключаем пагинацию для подписок
+    pagination_class = None
 
     def get_queryset(self):
-        return Follow.objects.filter(
-            user=self.request.user
-        ).select_related('following').order_by('-id')
+        return Follow.objects.filter(user=self.request.user
+            ).select_related('following').order_by('-id')
 
     def perform_create(self, serializer):
         following_user = serializer.validated_data['following']
-        
         if following_user == self.request.user:
-            raise ValidationError(
-                {"following": "Вы не можете подписаться на самого себя"}
-            )
-        
-        if Follow.objects.filter(
-            user=self.request.user,
-            following=following_user
-        ).exists():
-            raise ValidationError(
-                {"following": "Вы уже подписаны на этого пользователя"}
-            )
-        
+            raise ValidationError({"following": "Вы не можете подписаться на самого себя"})
+        if Follow.objects.filter(user=self.request.user, following=following_user).exists():
+            raise ValidationError({"following": "Вы уже подписаны на этого пользователя"})
         serializer.save(user=self.request.user)
 
     @action(detail=False, methods=['get'])
     def search(self, request):
-        """Поиск подписок по имени пользователя с пагинацией"""
         queryset = self.filter_queryset(self.get_queryset())
         search_query = request.query_params.get('search')
-        
         if search_query:
             queryset = queryset.filter(
                 Q(following__username__icontains=search_query) |
                 Q(following__first_name__icontains=search_query) |
-                Q(following__last_name__icontains=search_query)
-            )
-        
+                Q(following__last_name__icontains=search_query))
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-            
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def followers(self, request):
-        """Получение списка подписчиков текущего пользователя"""
-        followers = Follow.objects.filter(
-            following=request.user
-        ).select_related('user')
-        
+        followers = Follow.objects.filter(following=request.user).select_related('user')
         page = self.paginate_queryset(followers)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-            
         serializer = self.get_serializer(followers, many=True)
         return Response(serializer.data)
