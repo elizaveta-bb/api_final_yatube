@@ -10,6 +10,7 @@ from .serializers import PostSerializer, CommentSerializer, FollowSerializer
 
 User = get_user_model()
 
+
 class PostViewSet(viewsets.ModelViewSet):
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -41,6 +42,7 @@ class PostViewSet(viewsets.ModelViewSet):
         serializer = CommentSerializer(comments, many=True)
         return Response(serializer.data)
 
+
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -62,6 +64,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         if instance.author != self.request.user:
             raise PermissionDenied("Вы не можете удалить чужой комментарий")
         instance.delete()
+
 
 class FollowViewSet(viewsets.ModelViewSet):
     serializer_class = FollowSerializer
