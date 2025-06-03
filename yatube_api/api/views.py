@@ -21,9 +21,9 @@ class PostViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        queryset = Post.objects.select_related('author').prefetch_related('comments')
-        
-        # Фильтрация по автору
+        queryset = 
+        Post.objects.select_related('author').prefetch_related('comments')
+
         author_username = self.request.query_params.get('author')
         if author_username:
             queryset = queryset.filter(author__username=author_username)
