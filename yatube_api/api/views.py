@@ -1,14 +1,26 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from posts.models import Post, Comment, Follow
-from .serializers import PostSerializer, CommentSerializer, FollowSerializer
+from posts.models import Post, Comment, Follow, Group
+from .serializers import (
+    PostSerializer,
+    CommentSerializer,
+    FollowSerializer,
+    GroupSerializer
+)
 
 User = get_user_model()
+
+
+class GroupViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'slug'
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -16,12 +28,18 @@ class PostViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        queryset = Post.objects.select_related('author').prefetch_related(
-            'comments'
-        )
+        queryset = Post.objects.select_related('author', 'group').prefetch_related('comments')
+        
+        # Фильтрация по автору
         author_username = self.request.query_params.get('author')
         if author_username:
             queryset = queryset.filter(author__username=author_username)
+            
+        # Фильтрация по группе
+        group_slug = self.request.query_params.get('group')
+        if group_slug:
+            queryset = queryset.filter(group__slug=group_slug)
+            
         return queryset.order_by('-pub_date')
 
     def perform_create(self, serializer):
@@ -41,7 +59,7 @@ class PostViewSet(viewsets.ModelViewSet):
     def comments(self, request, pk=None):
         post = self.get_object()
         comments = post.comments.all()
-        serializer = CommentSerializer(comments, many=True)
+        serializer = CommentSerializer(comments, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -59,9 +77,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         if serializer.instance.author != self.request.user:
-            raise PermissionDenied(
-                "Вы не можете редактировать чужой комментарий"
-            )
+            raise PermissionDenied("Вы не можете редактировать чужой комментарий")
         serializer.save()
 
     def perform_destroy(self, instance):
@@ -73,53 +89,26 @@ class CommentViewSet(viewsets.ModelViewSet):
 class FollowViewSet(viewsets.ModelViewSet):
     serializer_class = FollowSerializer
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = None
 
     def get_queryset(self):
-        return Follow.objects.filter(
-            user=self.request.user
-        ).select_related('following').order_by('-id')
+        return Follow.objects.filter(user=self.request.user).select_related('following')
 
     def perform_create(self, serializer):
-        following_user = serializer.validated_data['following']
-        if following_user == self.request.user:
-            raise ValidationError(
-                {"following": "Вы не можете подписаться на самого себя"}
-            )
-        if Follow.objects.filter(
-            user=self.request.user,
-            following=following_user
-        ).exists():
-            raise ValidationError(
-                {"following": "Вы уже подписаны на этого пользователя"}
-            )
+        following = serializer.validated_data['following']
+        if self.request.user == following:
+            raise ValidationError({"following": "Вы не можете подписаться на самого себя"})
         serializer.save(user=self.request.user)
 
     @action(detail=False, methods=['get'])
-    def search(self, request):
-        queryset = self.filter_queryset(self.get_queryset())
-        search_query = request.query_params.get('search')
-        if search_query:
-            queryset = queryset.filter(
-                Q(following__username__icontains=search_query)
-                | Q(following__first_name__icontains=search_query)
-                | Q(following__last_name__icontains=search_query)
-            )
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
+    def followers(self, request):
+        """Получить список подписчиков текущего пользователя"""
+        followers = Follow.objects.filter(following=request.user).select_related('user')
+        serializer = self.get_serializer(followers, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
-    def followers(self, request):
-        followers = Follow.objects.filter(
-            following=request.user
-        ).select_related('user')
-        page = self.paginate_queryset(followers)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(followers, many=True)
+    def following(self, request):
+        """Получить список подписок текущего пользователя"""
+        following = self.get_queryset()
+        serializer = self.get_serializer(following, many=True)
         return Response(serializer.data)
