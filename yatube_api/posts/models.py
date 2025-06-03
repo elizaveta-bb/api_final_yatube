@@ -21,7 +21,7 @@ class Post(models.Model):
     group = models.ForeignKey(
         Group,
         on_delete=models.SET_NULL,
-        related_name='posts',
+        related_name='posts',  # ← ключевой параметр!
         blank=True,
         null=True
     )
