@@ -109,7 +109,6 @@ class Follow(models.Model):
             models.UniqueConstraint(
                 fields=['user', 'following'],
                 name='unique_follow',
-                violation_error_message='Подписка уже существует'
             )
         ]
         verbose_name = 'Подписка'
