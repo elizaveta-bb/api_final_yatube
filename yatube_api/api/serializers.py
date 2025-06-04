@@ -1,11 +1,14 @@
 from rest_framework import serializers
-from posts.models import Post, Comment, Follow, Group
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
+
+from posts.models import Post, Comment, Follow, Group
 
 User = get_user_model()
 
 
 class GroupSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели Group."""
     class Meta:
         model = Group
         fields = ('id', 'title', 'slug', 'description')
@@ -13,6 +16,7 @@ class GroupSerializer(serializers.ModelSerializer):
 
 
 class PostSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели Post с обработкой изображений."""
     author = serializers.SlugRelatedField(
         slug_field='username',
         read_only=True,
@@ -31,6 +35,7 @@ class PostSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели Comment с автоматическим определением автора."""
     author = serializers.SlugRelatedField(
         slug_field='username',
         read_only=True,
@@ -48,6 +53,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class FollowSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели Follow с валидацией подписок."""
     user = serializers.SlugRelatedField(
         slug_field='username',
         read_only=True,
@@ -65,11 +71,30 @@ class FollowSerializer(serializers.ModelSerializer):
             serializers.UniqueTogetherValidator(
                 queryset=Follow.objects.all(),
                 fields=('user', 'following'),
-                message='You are already following this user.'
+                message='Вы уже подписаны на этого пользователя.'
             )
         ]
 
     def validate_following(self, value):
+        """Проверка, что пользователь не пытается подписаться на себя."""
         if self.context['request'].user == value:
-            raise serializers.ValidationError("You cannot follow yourself.")
+            raise serializers.ValidationError(
+                "Нельзя подписаться на самого себя."
+            )
         return value
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Кастомный сериализатор для JWT-аутентификации."""
+    username = serializers.CharField(
+        error_messages={
+            'blank': 'Обязательное поле.',
+            'required': 'Обязательное поле.'
+        }
+    )
+    password = serializers.CharField(
+        error_messages={
+            'blank': 'Обязательное поле.',
+            'required': 'Обязательное поле.'
+        }
+    )
