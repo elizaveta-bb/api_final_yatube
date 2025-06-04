@@ -1,7 +1,16 @@
-from rest_framework import pagination, viewsets, permissions, filters
+from rest_framework import (
+    pagination,
+    viewsets,
+    permissions,
+    filters
+)
+from rest_framework.mixins import (
+    CreateModelMixin,
+    ListModelMixin,
+    RetrieveModelMixin
+)
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
-from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin
 
 from posts.models import Post, Follow, Group
 from .serializers import (
@@ -50,7 +59,12 @@ class CommentViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user, post=post)
 
 
-class FollowViewSet(CreateModelMixin, ListModelMixin, RetrieveModelMixin, viewsets.GenericViewSet):
+class FollowViewSet(
+    CreateModelMixin,
+    ListModelMixin,
+    RetrieveModelMixin,
+    viewsets.GenericViewSet
+):
     """Управление подписками на других пользователей."""
     serializer_class = FollowSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -59,7 +73,8 @@ class FollowViewSet(CreateModelMixin, ListModelMixin, RetrieveModelMixin, viewse
 
     def get_queryset(self):
         """Получение подписок текущего пользователя."""
-        return Follow.objects.filter(user=self.request.user).select_related('following')
+        return Follow.objects.filter(
+            user=self.request.user).select_related('following')
 
     def perform_create(self, serializer):
         """Автоматическое сохранение подписки для текущего пользователя."""
