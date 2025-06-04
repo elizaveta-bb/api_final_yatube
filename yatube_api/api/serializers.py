@@ -22,11 +22,6 @@ class PostSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     image = serializers.ImageField(required=False, allow_null=True)
-    group = serializers.PrimaryKeyRelatedField(
-        queryset=Group.objects.all(),
-        required=False,
-        allow_null=True
-    )
 
     class Meta:
         model = Post
@@ -41,15 +36,11 @@ class CommentSerializer(serializers.ModelSerializer):
         read_only=True,
         default=serializers.CurrentUserDefault()
     )
-    post = serializers.PrimaryKeyRelatedField(
-        queryset=Post.objects.all(),
-        required=True
-    )
 
     class Meta:
         model = Comment
         fields = ('id', 'author', 'post', 'text', 'created')
-        read_only_fields = ('created',)
+        read_only_fields = ('created', 'post')
 
 
 class FollowSerializer(serializers.ModelSerializer):
@@ -82,19 +73,3 @@ class FollowSerializer(serializers.ModelSerializer):
                 "Нельзя подписаться на самого себя."
             )
         return value
-
-
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """Кастомный сериализатор для JWT-аутентификации."""
-    username = serializers.CharField(
-        error_messages={
-            'blank': 'Обязательное поле.',
-            'required': 'Обязательное поле.'
-        }
-    )
-    password = serializers.CharField(
-        error_messages={
-            'blank': 'Обязательное поле.',
-            'required': 'Обязательное поле.'
-        }
-    )
