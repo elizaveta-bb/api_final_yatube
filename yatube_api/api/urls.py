@@ -25,7 +25,10 @@ urlpatterns = [
     path(API_VERSION + 'auth/', include('djoser.urls')),
     path(API_VERSION + 'auth/', include('djoser.urls.jwt')),
 
-    path(API_VERSION + 'jwt/create/', TokenObtainPairView.as_view(), name='jwt_obtain'),
-    path(API_VERSION + 'jwt/refresh/', TokenRefreshView.as_view(), name='jwt_refresh'),
-    path(API_VERSION + 'jwt/verify/', TokenVerifyView.as_view(), name='jwt_verify'),
+    path(API_VERSION + 'jwt/create/',
+         TokenObtainPairView.as_view(), name='jwt_obtain'),
+    path(API_VERSION + 'jwt/refresh/',
+         TokenRefreshView.as_view(), name='jwt_refresh'),
+    path(API_VERSION + 'jwt/verify/',
+         TokenVerifyView.as_view(), name='jwt_verify'),
 ]
